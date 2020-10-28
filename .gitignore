@@ -1,2 +1,6 @@
-
+.DS_Store
+reports/*.txt
+!reports/.NOTEMPTY
+reports/backup/*.txt
+!reports/backup/.NOTEMPTY
 __pycache__
