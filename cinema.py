@@ -1,4 +1,4 @@
-from datetime import date, time, datetime
+from datetime import date, time, datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 import copy
@@ -115,7 +115,7 @@ def parseMovieName(__text):
 
     if stime_avail:
         if(hh>=24):
-            print('OverTime Detected : %s | %s' %( stime, movie_title))
+            #print('OverTime Detected : %s | %s' %( stime, movie_title))
             hh -= 24
         ttime = time(hh, mm)
 
@@ -229,7 +229,16 @@ class cinema:
                 self.room_names.append('')
 
     def parse_table(self):
-        core = self.data[2]
+        if len(self.data) >= 3:
+            core = self.data[2]
+            self.isAvailable = True
+        else:
+            self.isAvailable = False
+            self.room_data = [[[]]]
+            dummy, temp_date = isDateCombined(self.tdstart)
+            self.room_dates = [copy.copy(temp_date)]
+            return
+
         temp_arr = []
         temp = []
         temp_date_arr = []
@@ -263,6 +272,9 @@ class cinema:
         self.room_dates = temp_date_arr
 
     def gen_minmax_time(self):
+        if self.isAvailable == False:
+            self.sch_gap.append(0)
+            return
 
         for i in range(len(self.room_data)):
             today_rooms = self.room_data[i]
@@ -335,9 +347,20 @@ class cinema:
             self.sch_fastest.append(fastest)
             self.sch_latest.append(latest)
             self.sch_gap.append(gap)
-                
+    
+    def print_table_failed(self):
+        rpt_txt = ''
+        __name = '{:<20s}'.format(self.name)
+        Cinemas = 'Cinema : %s\n' % (__name)
+        rpt_txt += Cinemas
+        rpt_txt += "!! 사용불가능, 정보를 찾지못했습니다. (공사중/해당시간 상영관 비존재) !!\n\n"
+        return rpt_txt
 
     def print_table(self, doPrint=True):
+        if self.isAvailable == False:
+            self.reports = self.print_table_failed()
+            return self.reports
+
         rpt_txt = ''
         for i in range(len(self.room_data)):
             today_rooms = self.room_data[i]
@@ -347,8 +370,15 @@ class cinema:
             rpt_txt += date_print_str + '\n'
             # Print Fastest, Latest, Gap
             fftime = self.sch_fastest[i].strftime('%H:%M')
-            lltime = self.sch_latest[i].strftime('%H:%M')
-            gptime = self.sch_gap[i]
+            try:
+                lltime = self.sch_latest[i].strftime('%H:%M')
+                gptime = self.sch_gap[i]
+            except AttributeError:
+                temp = datetime.combine(date.today(), self.sch_fastest[i])
+                temp = temp + timedelta(hours=2)
+                temp = temp.time()
+                lltime = temp.strftime('%H:%M')
+                gptime = 3600*2
 
             _m, _s = divmod(gptime, 60)
             _h, _m = divmod(_m, 60)
